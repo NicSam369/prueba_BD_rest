@@ -1,0 +1,17 @@
+# Variables de entorno
+backend/.env
+
+# Entorno virtual
+backend/venv/
+
+# Caché de Python
+backend/__pycache__/
+**/__pycache__/
+*.pyc
+
+# Configuración de VS Code
+.vscode/
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
