@@ -2,8 +2,12 @@ from flask import Flask
 from flask_cors import CORS
 from database import get_connection
 
+from routes.cliente_routes import cliente_bp
+
 app = Flask(__name__)
 CORS(app)
+
+app.register_blueprint(cliente_bp)
 
 @app.route("/")
 def inicio():
