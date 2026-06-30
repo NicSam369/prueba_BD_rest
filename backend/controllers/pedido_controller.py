@@ -23,7 +23,7 @@ def registrar_pedido():
         datos["id_empleado"],
         datos["id_mesa"],
         datos["estado"],
-        datos["total"]
+        datos["productos"]
     )
 
 
