@@ -73,29 +73,92 @@ def obtener_pedido_por_id(id_pedido):
             "total": float(pedido[6]) if pedido[6] is not None else None
     }
 
-def crear_pedido(id_cliente, id_empleado, id_mesa, estado,total):
+def crear_pedido(id_cliente, id_empleado, id_mesa, estado, productos):
+
     conexion = get_connection()
     cursor = conexion.cursor()
 
-    cursor.execute("""
-        INSERT INTO pedido
-        (id_cliente, id_empleado, id_mesa, estado, total)
-        VALUES (%s, %s, %s, %s, %s)
-        RETURNING id_pedido;
-    """, (id_cliente, id_empleado, id_mesa, estado, total))
+    try:
 
-    nuevo_id = cursor.fetchone()[0]
+        # Crear pedido con total temporal = 0
+        cursor.execute("""
+            INSERT INTO pedido
+            (id_cliente, id_empleado, id_mesa, estado, total)
+            VALUES (%s,%s,%s,%s,%s)
+            RETURNING id_pedido;
+        """, (
+            id_cliente,
+            id_empleado,
+            id_mesa,
+            estado,
+            0
+        ))
 
-    conexion.commit()
+        id_pedido = cursor.fetchone()[0]
 
-    cursor.close()
-    conexion.close()
+        total = 0
 
-    return {
-        "estado": "OK",
-        "mensaje": "Pedido creado correctamente",
-        "id_pedido": nuevo_id
-    }
+        # Insertar cada producto
+        for producto in productos:
+
+            cantidad = producto["cantidad"]
+            precio = producto["precio_unitario"]
+
+            subtotal = cantidad * precio
+
+            total += subtotal
+
+            cursor.execute("""
+                INSERT INTO detalle_pedido
+                (
+                    id_pedido,
+                    id_producto,
+                    cantidad,
+                    precio_unitario,
+                    subtotal
+                )
+                VALUES
+                (%s,%s,%s,%s,%s);
+            """, (
+                id_pedido,
+                producto["id_producto"],
+                cantidad,
+                precio,
+                subtotal
+            ))
+
+        # Actualizar total del pedido
+        cursor.execute("""
+            UPDATE pedido
+            SET total=%s
+            WHERE id_pedido=%s;
+        """, (
+            total,
+            id_pedido
+        ))
+
+        conexion.commit()
+
+        return {
+            "estado": "OK",
+            "mensaje": "Pedido registrado correctamente",
+            "id_pedido": id_pedido,
+            "total": float(total)
+        }
+
+    except Exception as e:
+
+        conexion.rollback()
+
+        return {
+            "estado": "ERROR",
+            "mensaje": str(e)
+        }
+
+    finally:
+
+        cursor.close()
+        conexion.close()
 
 def actualizar_pedido(id_pedido, id_cliente, id_empleado, id_mesa, fecha_hora, estado, total):
     conexion = get_connection()
