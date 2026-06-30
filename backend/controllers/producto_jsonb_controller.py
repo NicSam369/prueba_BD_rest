@@ -6,9 +6,11 @@ def listar_productos_jsonb():
     filtro = request.args.get("filtro")
     valor = request.args.get("valor")
 
-    datos = obtener_productos_jsonb(filtro, valor)
+    resultado = obtener_productos_jsonb(filtro, valor)
 
+    # obtener_productos_jsonb ya devuelve {"data": [...]}, así que no hay
+    # que volver a meterlo dentro de otro "data" o queda data.data (doble envoltorio)
     return {
         "estado": "OK",
-        "data": datos
+        "data": resultado["data"]
     }
