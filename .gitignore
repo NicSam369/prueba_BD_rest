@@ -1,7 +1,3 @@
-
-# Entorno virtual
-backend/venv/
-
 # Caché de Python
 backend/__pycache__/
 **/__pycache__/
