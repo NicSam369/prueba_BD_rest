@@ -17,6 +17,8 @@ from routes.factura_routes import factura_bp
 from routes.compra_routes import compra_bp
 from routes.detalle_compra_routes import detalle_compra_bp
 from routes.promocion_routes import promocion_bp
+from routes.producto_jsonb_routes import producto_jsonb_bp
+from routes.reporte_routes import reporte_bp
 
 app = Flask(__name__)
 CORS(app)
@@ -37,6 +39,8 @@ app.register_blueprint(factura_bp)
 app.register_blueprint(compra_bp)
 app.register_blueprint(detalle_compra_bp)
 app.register_blueprint(promocion_bp)
+app.register_blueprint(producto_jsonb_bp)
+app.register_blueprint(reporte_bp)
 
 @app.route("/")
 def inicio():
