@@ -73,92 +73,84 @@ def obtener_pedido_por_id(id_pedido):
             "total": float(pedido[6]) if pedido[6] is not None else None
     }
 
-def crear_pedido(id_cliente, id_empleado, id_mesa, estado, productos):
+def crear_pedido(id_cliente, id_empleado, id_mesa, productos, estado="Pendiente"):
+    if not productos:
+        return {
+            "estado": "ERROR",
+            "mensaje": "El pedido debe incluir al menos un producto"
+        }
+
+    total = sum(p["cantidad"] * p["precio_unitario"] for p in productos)
 
     conexion = get_connection()
     cursor = conexion.cursor()
 
     try:
-
-        # Crear pedido con total temporal = 0
         cursor.execute("""
             INSERT INTO pedido
             (id_cliente, id_empleado, id_mesa, estado, total)
-            VALUES (%s,%s,%s,%s,%s)
+            VALUES (%s, %s, %s, %s, %s)
             RETURNING id_pedido;
-        """, (
-            id_cliente,
-            id_empleado,
-            id_mesa,
-            estado,
-            0
-        ))
+        """, (id_cliente, id_empleado, id_mesa, estado, total))
 
-        id_pedido = cursor.fetchone()[0]
+        nuevo_id = cursor.fetchone()[0]
 
-        total = 0
-
-        # Insertar cada producto
-        for producto in productos:
-
-            cantidad = producto["cantidad"]
-            precio = producto["precio_unitario"]
-
-            subtotal = cantidad * precio
-
-            total += subtotal
-
+        for p in productos:
+            subtotal = p["cantidad"] * p["precio_unitario"]
             cursor.execute("""
                 INSERT INTO detalle_pedido
-                (
-                    id_pedido,
-                    id_producto,
-                    cantidad,
-                    precio_unitario,
-                    subtotal
-                )
-                VALUES
-                (%s,%s,%s,%s,%s);
-            """, (
-                id_pedido,
-                producto["id_producto"],
-                cantidad,
-                precio,
-                subtotal
-            ))
-
-        # Actualizar total del pedido
-        cursor.execute("""
-            UPDATE pedido
-            SET total=%s
-            WHERE id_pedido=%s;
-        """, (
-            total,
-            id_pedido
-        ))
+                (id_pedido, id_producto, cantidad, precio_unitario, subtotal)
+                VALUES (%s, %s, %s, %s, %s);
+            """, (nuevo_id, p["id_producto"], p["cantidad"], p["precio_unitario"], subtotal))
 
         conexion.commit()
-
-        return {
-            "estado": "OK",
-            "mensaje": "Pedido registrado correctamente",
-            "id_pedido": id_pedido,
-            "total": float(total)
-        }
-
     except Exception as e:
-
         conexion.rollback()
-
-        return {
-            "estado": "ERROR",
-            "mensaje": str(e)
-        }
-
-    finally:
-
         cursor.close()
         conexion.close()
+        return {
+            "estado": "ERROR",
+            "mensaje": f"No se pudo crear el pedido: {str(e)}"
+        }
+
+    cursor.close()
+    conexion.close()
+
+    return {
+        "estado": "OK",
+        "mensaje": "Pedido creado correctamente",
+        "id_pedido": nuevo_id,
+        "total": float(total)
+    }
+
+
+def actualizar_estado_pedido(id_pedido, estado):
+    conexion = get_connection()
+    cursor = conexion.cursor()
+
+    cursor.execute("""
+        UPDATE pedido
+        SET estado = %s
+        WHERE id_pedido = %s;
+    """, (estado, id_pedido))
+
+    conexion.commit()
+
+    filas = cursor.rowcount
+
+    cursor.close()
+    conexion.close()
+
+    if filas == 0:
+        return {
+            "estado": "ERROR",
+            "mensaje": "Pedido no encontrado"
+        }
+
+    return {
+        "estado": "OK",
+        "mensaje": "Estado del pedido actualizado correctamente"
+    }
 
 def actualizar_pedido(id_pedido, id_cliente, id_empleado, id_mesa, fecha_hora, estado, total):
     conexion = get_connection()
