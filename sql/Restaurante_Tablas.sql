@@ -38,7 +38,6 @@ CREATE TABLE CATEGORIA (
 	CONSTRAINT fk_empldo_id_scrsal
 		FOREIGN KEY (id_scrsal)
 		REFERENCES SUCURSAL(id_scrsal)
-	  	ON DELETE SET NULL
   );
 
 --2
@@ -97,7 +96,6 @@ CREATE TABLE PRODUCTO (
 	CONSTRAINT fk_id_categoria
 		FOREIGN KEY (id_categoria)
 		REFERENCES CATEGORIA(id_categoria)
-		ON DELETE SET NULL
   );
 
 --4
@@ -110,7 +108,8 @@ CREATE TABLE PRODUCTO (
     subtotal NUMERIC(12,2),
     CONSTRAINT fk_detalle_pedido_pedido
         FOREIGN KEY (id_pedido)
-        REFERENCES PEDIDO(id_pedido),
+        REFERENCES PEDIDO(id_pedido)
+	  	ON DELETE CASCADE,
     CONSTRAINT fk_detalle_pedido_producto
         FOREIGN KEY (id_producto)
         REFERENCES PRODUCTO(id_producto)
