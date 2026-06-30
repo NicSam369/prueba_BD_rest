@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Restaurante — Panel de gestión</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+  :root {
+    --bg: #FAF8F4;
+    --surface: #FFFFFF;
+    --ink: #1C1A17;
+    --ink-soft: #6B6358;
+    --line: #E4DFD5;
+    --rust: #B5572C;
+    --rust-soft: #F4E3D8;
+    --olive: #5C6B3F;
+    --olive-soft: #E8ECDD;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+  }
+
+  header {
+    border-bottom: 1px solid var(--line);
+    padding: 20px 32px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    background: var(--surface);
+  }
+
+  .brand {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 18px;
+    letter-spacing: -0.02em;
+  }
+  .brand span { color: var(--rust); }
+
+  nav { display: flex; gap: 4px; }
+  nav button {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    background: none;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--ink-soft);
+  }
+  nav button.active { background: var(--ink); color: var(--bg); }
+  nav button:hover:not(.active) { background: var(--line); }
+
+  .status-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--olive); display: inline-block; margin-right: 6px;
+  }
+  .status-dot.off { background: var(--rust); }
+  #conn-status { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink-soft); }
+
+  main { padding: 32px; max-width: 1000px; margin: 0 auto; }
+
+  .view { display: none; }
+  .view.active { display: block; }
+
+  .view-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  .view-sub { font-size: 13px; color: var(--ink-soft); margin-bottom: 24px; }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    text-align: left;
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 500;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ink-soft);
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--line);
+    background: #FAF8F4;
+  }
+  td { padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #FCFBF8; }
+
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 100px;
+  }
+  .badge.pendiente { background: var(--rust-soft); color: var(--rust); }
+  .badge.entregado, .badge.pagado { background: var(--olive-soft); color: var(--olive); }
+  .badge.preparacion { background: #FEF3D6; color: #8A6116; }
+  .badge.cancelado { background: #F1F0EC; color: var(--ink-soft); }
+
+  .actions { display: flex; gap: 6px; }
+  .actions button {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 12px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    padding: 5px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--ink-soft);
+  }
+  .actions button:hover { border-color: var(--ink); color: var(--ink); }
+  .actions button.danger:hover { border-color: var(--rust); color: var(--rust); }
+
+  .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .btn-primary {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px; font-weight: 600;
+    background: var(--ink); color: var(--bg);
+    border: none; padding: 10px 18px; border-radius: 7px; cursor: pointer;
+  }
+  .btn-primary:hover { background: var(--rust); }
+
+  .empty-state { padding: 48px; text-align: center; color: var(--ink-soft); font-size: 13px; }
+
+  /* Formulario modal sencillo */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(28,26,23,0.4);
+    align-items: center; justify-content: center; z-index: 10;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface); border-radius: 12px; padding: 28px;
+    width: 380px; max-width: 90vw;
+  }
+  .modal h3 { font-size: 16px; margin-bottom: 16px; }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 12px; color: var(--ink-soft); margin-bottom: 5px; }
+  .field input, .field select {
+    width: 100%; padding: 9px 11px; border: 1px solid var(--line);
+    border-radius: 7px; font-size: 13px; font-family: 'IBM Plex Sans', sans-serif;
+    background: var(--bg);
+  }
+  .field input:focus, .field select:focus { outline: 2px solid var(--rust); outline-offset: -1px; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 20px; }
+  .modal-actions button { flex: 1; padding: 10px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .btn-cancel { background: var(--surface); border: 1px solid var(--line); color: var(--ink-soft); }
+  .btn-save { background: var(--ink); border: none; color: var(--bg); }
+  .form-error { font-size: 12px; color: var(--rust); margin-top: 4px; min-height: 16px; }
+
+  /* JSONB tags */
+  .tag { display: inline-block; font-size: 10px; background: var(--olive-soft); color: var(--olive);
+         padding: 2px 7px; border-radius: 100px; margin: 1px 2px 1px 0; }
+
+  .stat-row { display: flex; gap: 14px; margin-bottom: 24px; }
+  .stat {
+    flex: 1; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 10px; padding: 16px 18px;
+  }
+  .stat-label { font-size: 11px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.04em; }
+  .stat-value { font-family: 'IBM Plex Mono', monospace; font-size: 24px; font-weight: 600; margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">restaurante<span>/</span>panel</div>
+  <nav>
+    <button class="nav-btn active" data-view="pedidos">Pedidos</button>
+    <button class="nav-btn" data-view="reporte">Reporte</button>
+    <button class="nav-btn" data-view="productos">Productos (NoSQL)</button>
+  </nav>
+  <div id="conn-status"><span class="status-dot off" id="dot"></span>conectando...</div>
+</header>
+
+<main>
+
+  <!-- VISTA PEDIDOS -->
+  <div class="view active" id="view-pedidos">
+    <div class="view-title">Pedidos</div>
+    <div class="view-sub">Gestión de comandas — CRUD completo contra PostgreSQL</div>
+
+    <div class="toolbar">
+      <span style="font-size:13px;color:var(--ink-soft)" id="pedidos-count">—</span>
+      <button class="btn-primary" onclick="abrirModalPedido()">+ Nuevo pedido</button>
+    </div>
+
+    <div class="panel">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th><th>Cliente</th><th>Empleado</th><th>Mesa</th>
+            <th>Estado</th><th>Total</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="tabla-pedidos">
+          <tr><td colspan="7" class="empty-state">Cargando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- VISTA REPORTE -->
+  <div class="view" id="view-reporte">
+    <div class="view-title">Reporte de ventas</div>
+    <div class="view-sub">GROUP BY categoría · HAVING cantidad &gt; 0 · 4 JOINs</div>
+
+    <div class="stat-row" id="reporte-stats"></div>
+
+    <div class="toolbar">
+      <span style="font-size:13px;color:var(--ink-soft)" id="reporte-count">—</span>
+      <a class="btn-primary" id="btn-csv" href="#" style="text-decoration:none;display:inline-block;">Exportar CSV</a>
+    </div>
+
+    <div class="panel">
+      <table>
+        <thead>
+          <tr><th>Categoría</th><th>Producto</th><th>Pedidos</th><th>Unidades</th><th>Ingreso</th></tr>
+        </thead>
+        <tbody id="tabla-reporte">
+          <tr><td colspan="5" class="empty-state">Cargando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- VISTA PRODUCTOS NoSQL -->
+  <div class="view" id="view-productos">
+    <div class="view-title">Productos — módulo híbrido</div>
+    <div class="view-sub">Columna JSONB en PRODUCTO · datos semiestructurados</div>
+
+    <div class="toolbar">
+      <div style="display:flex;gap:8px;">
+        <button class="actions-filter btn-cancel" style="border:1px solid var(--line);padding:8px 14px;border-radius:7px;cursor:pointer;background:var(--surface);" onclick="cargarProductos()">Todos</button>
+        <button class="actions-filter btn-cancel" style="border:1px solid var(--line);padding:8px 14px;border-radius:7px;cursor:pointer;background:var(--surface);" onclick="cargarProductos('sin_gluten')">Sin gluten</button>
+        <button class="actions-filter btn-cancel" style="border:1px solid var(--line);padding:8px 14px;border-radius:7px;cursor:pointer;background:var(--surface);" onclick="cargarProductos('alergeno','lacteos')">Con lácteos</button>
+        <button class="actions-filter btn-cancel" style="border:1px solid var(--line);padding:8px 14px;border-radius:7px;cursor:pointer;background:var(--surface);" onclick="cargarProductos('rapidos')">Rápidos ≤15min</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <table>
+        <thead>
+          <tr><th>Categoría</th><th>Producto</th><th>Precio</th><th>Picante</th><th>Calorías</th><th>Etiquetas</th></tr>
+        </thead>
+        <tbody id="tabla-productos">
+          <tr><td colspan="6" class="empty-state">Cargando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<!-- MODAL NUEVO PEDIDO -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <h3>Nuevo pedido</h3>
+    <div class="field">
+      <label>ID Cliente</label>
+      <input type="number" id="f-cliente" placeholder="1">
+    </div>
+    <div class="field">
+      <label>ID Empleado</label>
+      <input type="number" id="f-empleado" placeholder="1">
+    </div>
+    <div class="field">
+      <label>ID Mesa</label>
+      <input type="number" id="f-mesa" placeholder="1">
+    </div>
+    <div class="field">
+      <label>ID Producto</label>
+      <input type="number" id="f-producto" placeholder="3">
+    </div>
+    <div class="field">
+      <label>Cantidad</label>
+      <input type="number" id="f-cantidad" placeholder="1">
+    </div>
+    <div class="field">
+      <label>Precio unitario</label>
+      <input type="number" step="0.01" id="f-precio" placeholder="25.00">
+    </div>
+    <div class="form-error" id="form-error"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn-save" onclick="guardarPedido()">Crear pedido</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ============================================================
+  // CONFIGURACIÓN — cambia esto si tu Flask corre en otro puerto
+  // ============================================================
+  const API = 'http://localhost:5000';
+
+  // ============================================================
+  // NAVEGACIÓN ENTRE VISTAS
+  // ============================================================
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('view-' + btn.dataset.view).classList.add('active');
+
+      if (btn.dataset.view === 'pedidos') cargarPedidos();
+      if (btn.dataset.view === 'reporte') cargarReporte();
+      if (btn.dataset.view === 'productos') cargarProductos();
+    });
+  });
+
+  // ============================================================
+  // VERIFICAR CONEXIÓN AL API
+  // ============================================================
+  async function verificarConexion() {
+    const dot = document.getElementById('dot');
+    const texto = document.getElementById('conn-status');
+    try {
+      const res = await fetch(`${API}/api/test-db`);
+      const data = await res.json();
+      if (data.estado === 'OK') {
+        dot.classList.remove('off');
+        texto.innerHTML = '<span class="status-dot" id="dot"></span>conectado a PostgreSQL';
+      } else {
+        throw new Error();
+      }
+    } catch (e) {
+      dot.classList.add('off');
+      texto.innerHTML = '<span class="status-dot off"></span>sin conexión — ¿corriste python3 app.py?';
+    }
+  }
+
+  // ============================================================
+  // PEDIDOS
+  // ============================================================
+  async function cargarPedidos() {
+    const tbody = document.getElementById('tabla-pedidos');
+    tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Cargando...</td></tr>';
+    try {
+      const res = await fetch(`${API}/api/pedidos`);
+      const json = await res.json();
+      const pedidos = json.data || [];
+      document.getElementById('pedidos-count').textContent = `${pedidos.length} pedidos`;
+
+      if (pedidos.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No hay pedidos todavía</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = pedidos.map(p => `
+        <tr>
+          <td>#${p.id_pedido}</td>
+          <td>${p.cliente}</td>
+          <td>${p.empleado}</td>
+          <td>Mesa ${p.mesa}</td>
+          <td><span class="badge ${badgeClase(p.estado)}">${p.estado}</span></td>
+          <td>S/ ${Number(p.total).toFixed(2)}</td>
+          <td class="actions">
+            <button onclick="cambiarEstado(${p.id_pedido})">Editar</button>
+            <button class="danger" onclick="eliminarPedido(${p.id_pedido})">Eliminar</button>
+          </td>
+        </tr>
+      `).join('');
+    } catch (e) {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Error al conectar con el API</td></tr>';
+    }
+  }
+
+  function badgeClase(estado) {
+    const map = {
+      'Pendiente': 'pendiente',
+      'En preparación': 'preparacion',
+      'Entregado': 'entregado',
+      'Pagado': 'pagado',
+      'Cancelado': 'cancelado'
+    };
+    return map[estado] || 'pendiente';
+  }
+
+  function abrirModalPedido() {
+    document.getElementById('modal-overlay').classList.add('open');
+    document.getElementById('form-error').textContent = '';
+  }
+  function cerrarModal() {
+    document.getElementById('modal-overlay').classList.remove('open');
+  }
+
+  async function guardarPedido() {
+    const id_cliente = parseInt(document.getElementById('f-cliente').value);
+    const id_empleado = parseInt(document.getElementById('f-empleado').value);
+    const id_mesa = parseInt(document.getElementById('f-mesa').value);
+    const id_producto = parseInt(document.getElementById('f-producto').value);
+    const cantidad = parseInt(document.getElementById('f-cantidad').value);
+    const precio_unitario = parseFloat(document.getElementById('f-precio').value);
+
+    const errorEl = document.getElementById('form-error');
+    if (!id_cliente || !id_empleado || !id_mesa || !id_producto || !cantidad || !precio_unitario) {
+      errorEl.textContent = 'Completa todos los campos';
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API}/api/pedidos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id_cliente, id_empleado, id_mesa,
+          productos: [{ id_producto, cantidad, precio_unitario }]
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        errorEl.textContent = data.error || 'Error al crear el pedido';
+        return;
+      }
+      cerrarModal();
+      cargarPedidos();
+    } catch (e) {
+      errorEl.textContent = 'No se pudo conectar con el API';
+    }
+  }
+
+  async function cambiarEstado(id) {
+    const nuevo = prompt('Nuevo estado (Pendiente / En preparación / Entregado / Pagado / Cancelado):');
+    if (!nuevo) return;
+    await fetch(`${API}/api/pedidos/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ estado: nuevo })
+    });
+    cargarPedidos();
+  }
+
+  async function eliminarPedido(id) {
+    if (!confirm(`¿Eliminar el pedido #${id}?`)) return;
+    await fetch(`${API}/api/pedidos/${id}`, { method: 'DELETE' });
+    cargarPedidos();
+  }
+
+  // ============================================================
+  // REPORTE
+  // ============================================================
+  async function cargarReporte() {
+    const tbody = document.getElementById('tabla-reporte');
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Cargando...</td></tr>';
+    document.getElementById('btn-csv').href = `${API}/api/reporte/categorias?formato=csv`;
+
+    try {
+      const res = await fetch(`${API}/api/reporte/categorias`);
+      const json = await res.json();
+      const filas = json.data || [];
+      document.getElementById('reporte-count').textContent = `${filas.length} filas`;
+
+      const totalIngreso = filas.reduce((sum, f) => sum + Number(f.ingreso_total), 0);
+      const totalUnidades = filas.reduce((sum, f) => sum + Number(f.total_unidades), 0);
+      document.getElementById('reporte-stats').innerHTML = `
+        <div class="stat"><div class="stat-label">Ingreso total</div><div class="stat-value">S/ ${totalIngreso.toFixed(2)}</div></div>
+        <div class="stat"><div class="stat-label">Unidades vendidas</div><div class="stat-value">${totalUnidades}</div></div>
+        <div class="stat"><div class="stat-label">Productos distintos</div><div class="stat-value">${filas.length}</div></div>
+      `;
+
+      if (filas.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No hay datos de ventas todavía</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = filas.map(f => `
+        <tr>
+          <td>${f.categoria}</td>
+          <td>${f.producto}</td>
+          <td>${f.num_pedidos}</td>
+          <td>${f.total_unidades}</td>
+          <td>S/ ${Number(f.ingreso_total).toFixed(2)}</td>
+        </tr>
+      `).join('');
+    } catch (e) {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Error al conectar con el API</td></tr>';
+    }
+  }
+
+  // ============================================================
+  // PRODUCTOS (NoSQL / JSONB)
+  // ============================================================
+  async function cargarProductos(filtro, valor) {
+    const tbody = document.getElementById('tabla-productos');
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Cargando...</td></tr>';
+
+    let url = `${API}/api/productos/jsonb`;
+    if (filtro) url += `?filtro=${filtro}`;
+    if (valor) url += `&valor=${valor}`;
+
+    try {
+      const res = await fetch(url);
+      const json = await res.json();
+      const productos = json.data || [];
+
+      if (productos.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No hay productos con este filtro</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = productos.map(p => {
+        const etiquetas = Array.isArray(p.etiquetas)
+          ? p.etiquetas.map(e => `<span class="tag">${e}</span>`).join('')
+          : '';
+        return `
+          <tr>
+            <td>${p.categoria || '—'}</td>
+            <td>${p.nombre || p.producto || '—'}</td>
+            <td>S/ ${Number(p.precio).toFixed(2)}</td>
+            <td>${p.picante || '—'}</td>
+            <td>${p.calorias || '—'}</td>
+            <td>${etiquetas || '—'}</td>
+          </tr>
+        `;
+      }).join('');
+    } catch (e) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Error al conectar con el API</td></tr>';
+    }
+  }
+
+  // ============================================================
+  // INICIO
+  // ============================================================
+  verificarConexion();
+  cargarPedidos();
+</script>
+
+</body>
+</html>
