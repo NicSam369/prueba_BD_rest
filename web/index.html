@@ -353,7 +353,8 @@
     tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Cargando...</td></tr>';
     try {
       const res = await fetch(`${API}/api/pedidos`);
-      const pedidos = await res.json();
+      const json = await res.json();
+      const pedidos = json.data || [];
       document.getElementById('pedidos-count').textContent = `${pedidos.length} pedidos`;
 
       if (pedidos.length === 0) {
