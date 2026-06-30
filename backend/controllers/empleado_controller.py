@@ -18,7 +18,7 @@ def buscar_empleado(id_empleado):
 def registrar_empleado():
     datos = request.get_json()
 
-    return crear_empleado(
+    resultado = crear_empleado(
         datos["nombre"],
         datos["apellido"],
         datos["dni"],
@@ -29,11 +29,15 @@ def registrar_empleado():
         datos["id_scrsal"]
     )
 
+    if resultado.get("estado") == "ERROR":
+        return resultado, 400
+    return resultado
+
 
 def editar_empleado(id_empleado):
     datos = request.get_json()
 
-    return actualizar_empleado(
+    resultado = actualizar_empleado(
         id_empleado,
         datos["nombre"],
         datos["apellido"],
@@ -45,5 +49,12 @@ def editar_empleado(id_empleado):
         datos["id_scrsal"]
     )
 
+    if resultado.get("estado") == "ERROR":
+        return resultado, 400
+    return resultado
+
 def borrar_empleado(id_empleado):
-    return eliminar_empleado(id_empleado)
+    resultado = eliminar_empleado(id_empleado)
+    if resultado.get("estado") == "ERROR":
+        return resultado, 400
+    return resultado

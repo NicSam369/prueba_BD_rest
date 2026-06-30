@@ -1,4 +1,5 @@
 from database import get_connection
+import psycopg2
 
 def obtener_clientes():
     conexion = get_connection()
@@ -77,16 +78,52 @@ def crear_cliente(nombre, apellido, email, dni, telefono):
     conexion = get_connection()
     cursor = conexion.cursor()
 
-    cursor.execute("""
-        INSERT INTO cliente
-        (nombre, apellido, email, dni, telefono)
-        VALUES (%s, %s, %s, %s, %s)
-        RETURNING id_cliente;
-    """, (nombre, apellido, email, dni, telefono))
+    try:
+        cursor.execute("""
+            INSERT INTO cliente
+            (nombre, apellido, email, dni, telefono)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING id_cliente;
+        """, (nombre, apellido, email, dni, telefono))
 
-    nuevo_id = cursor.fetchone()[0]
+        nuevo_id = cursor.fetchone()[0]
+        conexion.commit()
 
-    conexion.commit()
+    except psycopg2.errors.UniqueViolation:
+        conexion.rollback()
+        cursor.close()
+        conexion.close()
+        return {
+            "estado": "ERROR",
+            "mensaje": "Ya existe un cliente con ese email o DNI"
+        }
+
+    except psycopg2.errors.CheckViolation:
+        conexion.rollback()
+        cursor.close()
+        conexion.close()
+        return {
+            "estado": "ERROR",
+            "mensaje": "Uno de los valores ingresados no cumple las reglas permitidas"
+        }
+
+    except psycopg2.errors.NotNullViolation:
+        conexion.rollback()
+        cursor.close()
+        conexion.close()
+        return {
+            "estado": "ERROR",
+            "mensaje": "Falta completar un campo obligatorio"
+        }
+
+    except Exception as e:
+        conexion.rollback()
+        cursor.close()
+        conexion.close()
+        return {
+            "estado": "ERROR",
+            "mensaje": f"No se pudo crear el cliente: {str(e)}"
+        }
 
     cursor.close()
     conexion.close()
@@ -101,19 +138,46 @@ def actualizar_cliente(id_cliente, nombre, apellido, email, dni, telefono):
     conexion = get_connection()
     cursor = conexion.cursor()
 
-    cursor.execute("""
-        UPDATE cliente
-        SET nombre = %s,
-            apellido = %s,
-            email = %s,
-            dni = %s,
-            telefono = %s
-        WHERE id_cliente = %s;
-    """, (nombre, apellido, email, dni, telefono, id_cliente))
+    try:
+        cursor.execute("""
+            UPDATE cliente
+            SET nombre = %s,
+                apellido = %s,
+                email = %s,
+                dni = %s,
+                telefono = %s
+            WHERE id_cliente = %s;
+        """, (nombre, apellido, email, dni, telefono, id_cliente))
 
-    conexion.commit()
+        conexion.commit()
+        filas = cursor.rowcount
 
-    filas = cursor.rowcount
+    except psycopg2.errors.UniqueViolation:
+        conexion.rollback()
+        cursor.close()
+        conexion.close()
+        return {
+            "estado": "ERROR",
+            "mensaje": "Ya existe otro cliente con ese email o DNI"
+        }
+
+    except psycopg2.errors.CheckViolation:
+        conexion.rollback()
+        cursor.close()
+        conexion.close()
+        return {
+            "estado": "ERROR",
+            "mensaje": "Uno de los valores ingresados no cumple las reglas permitidas"
+        }
+
+    except Exception as e:
+        conexion.rollback()
+        cursor.close()
+        conexion.close()
+        return {
+            "estado": "ERROR",
+            "mensaje": f"No se pudo actualizar el cliente: {str(e)}"
+        }
 
     cursor.close()
     conexion.close()
@@ -133,14 +197,32 @@ def eliminar_cliente(id_cliente):
     conexion = get_connection()
     cursor = conexion.cursor()
 
-    cursor.execute("""
-        DELETE FROM cliente
-        WHERE id_cliente = %s;
-    """, (id_cliente,))
+    try:
+        cursor.execute("""
+            DELETE FROM cliente
+            WHERE id_cliente = %s;
+        """, (id_cliente,))
 
-    conexion.commit()
+        conexion.commit()
+        filas = cursor.rowcount
 
-    filas = cursor.rowcount
+    except psycopg2.errors.ForeignKeyViolation:
+        conexion.rollback()
+        cursor.close()
+        conexion.close()
+        return {
+            "estado": "ERROR",
+            "mensaje": "No se puede eliminar: el cliente tiene pedidos o reservas relacionadas"
+        }
+
+    except Exception as e:
+        conexion.rollback()
+        cursor.close()
+        conexion.close()
+        return {
+            "estado": "ERROR",
+            "mensaje": f"No se pudo eliminar el cliente: {str(e)}"
+        }
 
     cursor.close()
     conexion.close()

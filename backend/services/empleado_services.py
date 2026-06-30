@@ -1,4 +1,5 @@
 from database import get_connection
+import psycopg2
 
 def obtener_empleados():
     conexion = get_connection()
@@ -85,16 +86,52 @@ def crear_empleado(nombre, apellido, dni, email, telefono, rol, turno, id_scrsal
     conexion = get_connection()
     cursor = conexion.cursor()
 
-    cursor.execute("""
-        INSERT INTO empleado
-        (nombre, apellido, dni, email, telefono, rol, turno, id_scrsal)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        RETURNING id_empleado;
-    """, (nombre, apellido, dni, email, telefono, rol, turno, id_scrsal))
+    try:
+        cursor.execute("""
+            INSERT INTO empleado
+            (nombre, apellido, dni, email, telefono, rol, turno, id_scrsal)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id_empleado;
+        """, (nombre, apellido, dni, email, telefono, rol, turno, id_scrsal))
 
-    nuevo_id = cursor.fetchone()[0]
+        nuevo_id = cursor.fetchone()[0]
+        conexion.commit()
 
-    conexion.commit()
+    except psycopg2.errors.UniqueViolation:
+        conexion.rollback()
+        cursor.close()
+        conexion.close()
+        return {
+            "estado": "ERROR",
+            "mensaje": "Ya existe un empleado con ese DNI o email"
+        }
+
+    except psycopg2.errors.CheckViolation:
+        conexion.rollback()
+        cursor.close()
+        conexion.close()
+        return {
+            "estado": "ERROR",
+            "mensaje": "El rol o turno ingresado no es válido (revisa los valores permitidos)"
+        }
+
+    except psycopg2.errors.ForeignKeyViolation:
+        conexion.rollback()
+        cursor.close()
+        conexion.close()
+        return {
+            "estado": "ERROR",
+            "mensaje": "La sucursal indicada no existe"
+        }
+
+    except Exception as e:
+        conexion.rollback()
+        cursor.close()
+        conexion.close()
+        return {
+            "estado": "ERROR",
+            "mensaje": f"No se pudo crear el empleado: {str(e)}"
+        }
 
     cursor.close()
     conexion.close()
@@ -109,22 +146,49 @@ def actualizar_empleado(id_empleado, nombre, apellido, dni, email, telefono, rol
     conexion = get_connection()
     cursor = conexion.cursor()
 
-    cursor.execute("""
-        UPDATE empleado
-        SET nombre = %s,
-            apellido = %s,
-            dni = %s,
-            email = %s,
-            telefono = %s,
-            rol = %s,
-            turno = %s,
-            id_scrsal = %s
-        WHERE id_empleado = %s;
-    """, (nombre, apellido, dni, email, telefono, rol, turno, id_scrsal, id_empleado))
+    try:
+        cursor.execute("""
+            UPDATE empleado
+            SET nombre = %s,
+                apellido = %s,
+                dni = %s,
+                email = %s,
+                telefono = %s,
+                rol = %s,
+                turno = %s,
+                id_scrsal = %s
+            WHERE id_empleado = %s;
+        """, (nombre, apellido, dni, email, telefono, rol, turno, id_scrsal, id_empleado))
 
-    conexion.commit()
+        conexion.commit()
+        filas = cursor.rowcount
 
-    filas = cursor.rowcount
+    except psycopg2.errors.UniqueViolation:
+        conexion.rollback()
+        cursor.close()
+        conexion.close()
+        return {
+            "estado": "ERROR",
+            "mensaje": "Ya existe otro empleado con ese DNI o email"
+        }
+
+    except psycopg2.errors.CheckViolation:
+        conexion.rollback()
+        cursor.close()
+        conexion.close()
+        return {
+            "estado": "ERROR",
+            "mensaje": "El rol o turno ingresado no es válido (revisa los valores permitidos)"
+        }
+
+    except Exception as e:
+        conexion.rollback()
+        cursor.close()
+        conexion.close()
+        return {
+            "estado": "ERROR",
+            "mensaje": f"No se pudo actualizar el empleado: {str(e)}"
+        }
 
     cursor.close()
     conexion.close()
@@ -144,14 +208,32 @@ def eliminar_empleado(id_empleado):
     conexion = get_connection()
     cursor = conexion.cursor()
 
-    cursor.execute("""
-        DELETE FROM empleado
-        WHERE id_empleado = %s;
-    """, (id_empleado,))
+    try:
+        cursor.execute("""
+            DELETE FROM empleado
+            WHERE id_empleado = %s;
+        """, (id_empleado,))
 
-    conexion.commit()
+        conexion.commit()
+        filas = cursor.rowcount
 
-    filas = cursor.rowcount
+    except psycopg2.errors.ForeignKeyViolation:
+        conexion.rollback()
+        cursor.close()
+        conexion.close()
+        return {
+            "estado": "ERROR",
+            "mensaje": "No se puede eliminar: el empleado tiene pedidos relacionados"
+        }
+
+    except Exception as e:
+        conexion.rollback()
+        cursor.close()
+        conexion.close()
+        return {
+            "estado": "ERROR",
+            "mensaje": f"No se pudo eliminar el empleado: {str(e)}"
+        }
 
     cursor.close()
     conexion.close()

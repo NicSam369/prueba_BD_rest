@@ -97,6 +97,29 @@ def crear_pedido(id_cliente, id_empleado, id_mesa, productos, estado="Pendiente"
                 VALUES (%s, %s, %s, %s, %s);
             """, (nuevo_id, p["id_producto"], p["cantidad"], p["precio_unitario"], subtotal))
 
+            # Descontar stock del producto vendido (tabla PRODUCTO)
+            cursor.execute("""
+                UPDATE producto
+                SET stock = stock - %s
+                WHERE id_producto = %s
+                RETURNING stock;
+            """, (p["cantidad"], p["id_producto"]))
+
+            fila_stock = cursor.fetchone()
+            if fila_stock is None:
+                raise ValueError(f"El producto {p['id_producto']} no existe")
+            if fila_stock[0] < 0:
+                raise ValueError(
+                    f"No hay stock suficiente para el producto {p['id_producto']}"
+                )
+
+        # Marcar la mesa como ocupada (tabla MESA)
+        cursor.execute("""
+            UPDATE mesa
+            SET estado = 'Ocupada'
+            WHERE id_mesa = %s;
+        """, (id_mesa,))
+
         conexion.commit()
 
     except Exception as e:

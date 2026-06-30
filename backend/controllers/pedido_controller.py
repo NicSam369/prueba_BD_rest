@@ -24,12 +24,16 @@ def registrar_pedido():
             "mensaje": "Faltan datos: se requiere id_cliente, id_empleado, id_mesa y productos"
         }, 400
 
-    return crear_pedido(
+    resultado = crear_pedido(
         datos["id_cliente"],
         datos["id_empleado"],
         datos["id_mesa"],
         datos["productos"]
     )
+
+    if resultado.get("estado") == "ERROR":
+        return resultado, 400
+    return resultado
 
 
 def editar_pedido(id_pedido):
